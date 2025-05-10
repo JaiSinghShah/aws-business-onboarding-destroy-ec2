@@ -2,11 +2,17 @@ provider "aws" {
   region = "ap-south-1"
 }
 
-resource "aws_security_group" "ec2_sg" {
-  name        = "My_EC2-SG"
-  description = "Allow SSH and HTTP traffic"
+resource "aws_key_pair" "generated_key" {
+  key_name   = "tf-generated-key"
+  public_key = file("C:/Users/JaiShah/.ssh/id_rsa.pub")
+}
+
+resource "aws_security_group" "web_sg" {
+  name        = "web_sg"
+  description = "Allow SSH and HTTP"
 
   ingress {
+    description = "SSH"
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
@@ -14,6 +20,7 @@ resource "aws_security_group" "ec2_sg" {
   }
 
   ingress {
+    description = "HTTP"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
@@ -26,27 +33,23 @@ resource "aws_security_group" "ec2_sg" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
-
-  tags = {
-    Name = "My_EC2-SG"
-  }
 }
 
-resource "aws_instance" "my_ec2" {
-  ami                    = "ami-0e35ddab05955cf57"
-  instance_type          = "t2.micro"
-  vpc_security_group_ids = [aws_security_group.ec2_sg.id]
+resource "aws_instance" "web_server" {
+  ami           = "ami-0e35ddab05955cf57"
+  instance_type = "t2.micro"
+  key_name      = aws_key_pair.generated_key.key_name
+  security_groups = [aws_security_group.web_sg.name]
 
   user_data = <<-EOF
               #!/bin/bash
-              sudo yum update -y
-              sudo yum install -y httpd
-              sudo systemctl enable httpd
-              sudo systemctl start httpd
-              echo "Apache Server is running on EC2" > /var/www/html/index.html
-              EOF
+              sudo apt update -y
+              sudo apt install apache2 -y
+              sudo systemctl enable apache2
+              sudo systemctl start apache2
+            EOF
 
   tags = {
-    Name = "Jenkins-EC2"
+    Name = "WebServer"
   }
 }
